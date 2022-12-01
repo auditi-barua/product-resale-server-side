@@ -42,83 +42,42 @@ function verifyJWT(req, res, next) {
 async function run() {
     try {
         const categoriesCollection = client.db('furniture').collection('category');
+        const productsCollection = client.db('furniture').collection('products');
         const usersCollection = client.db('furniture').collection('users');
         const paymentsCollection = client.db('furniture').collection('payments');
 
+        const verifyAdmin = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollection.findOne(query);
+
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
         app.get('/category', async (req, res) => {
-            const query = {};
-            const users = await categoriesCollection.find(query).toArray();
+            const query = {}
+            const cursor = categoriesCollection.find(query);
+            const category = await cursor.toArray();
+            console.log(category)
             res.send(category);
         })
-
-        app.get('/users', async (req, res) => {
-            const query = {};
-            const users = await usersCollection.find(query).toArray();
-            res.send(users);
-        });
-        
-        app.get('/users/admin/:email', async (req, res) => {
-            const email = req.params.email;
-            const query = { email }
-            const user = await usersCollection.findOne(query);
-            res.send({ isAdmin: user?.role === 'admin' });
+        app.get('/products', async (req, res) => {
+            const query = {}
+            const cursor = productsCollection.find(query);
+            const product = await cursor.toArray();
+            console.log(product)
+            res.send(product);
         })
         
         app.post('/users', async (req, res) => {
             const user = req.body;
             console.log(user);
-            // TODO: make sure you do not enter duplicate user email
-            // only insert users if the user doesn't exist in the database
             const result = await usersCollection.insertOne(user);
             res.send(result);
         });
-        
-        app.put('/users/admin/:id', verifyJWT,  async (req, res) => {
-            const id = req.params.id;
-            const filter = { _id: ObjectId(id) }
-            const options = { upsert: true };
-            const updatedDoc = {
-                $set: {
-                    role: 'admin'
-                }
-            }
-            const result = await usersCollection.updateOne(filter, updatedDoc, options);
-            res.send(result);
-        });
-        
-
-        app.post('/create-payment-intent', async (req, res) => {
-            const booking = req.body;
-            const price = booking.price;
-            const amount = price * 100;
-        
-            const paymentIntent = await stripe.paymentIntents.create({
-                currency: 'usd',
-                amount: amount,
-                "payment_method_types": [
-                    "card"
-                ]
-            });
-            res.send({
-                clientSecret: paymentIntent.client_secret,
-            });
-        });
-        
-        app.post('/payments', async (req, res) =>{
-            const payment = req.body;
-            const result = await paymentsCollection.insertOne(payment);
-            const id = payment.bookingId
-            const filter = {_id: ObjectId(id)}
-            const updatedDoc = {
-                $set: {
-                    paid: true,
-                    transactionId: payment.transactionId
-                }
-            }
-            const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc)
-            res.send(result);
-        })
-        
+    
         app.get('/jwt', async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
