@@ -101,7 +101,7 @@ async function run() {
 
 run().catch(console.log);
 app.get('/', (req, res) => {
-    res.send('hello furnitureland')
+    res.send(' furnitureland server api running')
 })
 
 app.listen(port, () => {
